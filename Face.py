@@ -10,7 +10,21 @@ class face:
     def __init__(self,i,j,grid,facename,velocity=None):
 
         """
-        initialization fn
+        the only goal of this function is to produce information
+        on where the discretization scheme should apply the modifications to the
+        Ap coefficients, NOT to apply the modifications itself.
+
+        It primarily sets the neighbor1, neighbor 2 properties which are the
+        indices in the actual grid of the cells the discretization scheme uses
+
+        In addition it sets neighbor1Apn and neighbor2Apn which are the indices
+        in the 5x1 grid used for the computational molecule
+
+        neighbor1, in upwinding schemes, is the cell directly upstream of the face
+        neighbor2, then, is the cell upwind of neighbor 1
+
+        for central (linear) schemes, neighbor1 is just the cell across the face
+        and neighbor2 has no meaning.
 
         inputs:
             i         (int)       -current gridpoint x index
@@ -42,6 +56,10 @@ class face:
         self.neighbor2Apn = 0
         # which direction to pull for grid.width to get the cell's width
         self.sizeDirection = "N"
+        # the indicies of the cell downwind of the current face
+        self.neighborDownwind = np.zeros(2,dtype=int)
+        # the index of the downwind cell in the Apn vector (0-4)
+        self.neighborDownwindApn = 0
 
         self.cell = np.array([i,j])
 
@@ -77,8 +95,10 @@ class face:
         if velocity is None:
             # if the velocity is none, this is not an upwind scheme
             self.upstream = self.normal
+            # assign the neighbor indexes
             self.neighbor1 = self.cell + self.normal
             self.neighbor2 = self.cell + self.normal * 2
+            # assign the neighbor Ap indexes
             self.neighbor1Apn = self.cellApn + np.sum(self.normal)
             self.neighbor2Apn = self.cellApn + np.sum(self.normal) * 2
         else:
@@ -97,6 +117,10 @@ class face:
             # the Apn indices are computed in a similar manner
             self.neighbor1Apn = int(self.neighbor1Apn + ApnUpstream * 0.5)
             self.neighbor2Apn = int(self.neighbor1Apn + ApnUpstream)
+
+            # the downwind position is the 1/2 offset in the downstream dir
+            self.neighborDownwind = (self.facePosition + -0.5 * upstreamDirection).astype(int)
+            self.neighborDownwindApn = int(self.neighbor1Apn + ApnUpstream * -0.5)
 
 
 
