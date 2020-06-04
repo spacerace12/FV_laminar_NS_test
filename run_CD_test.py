@@ -1,8 +1,8 @@
-    """
-        this is a main testing program to do diffusion-only and convection-only
-        (and perhaps both combined) tests before moving on to a more full CFD
-        method
-    """
+"""
+    this is a main testing program to do diffusion-only and convection-only
+    (and perhaps both combined) tests before moving on to a more full CFD
+    method
+"""
 
 import numpy as np
 import matplotlib
@@ -17,29 +17,30 @@ def main():
     #number of iterations
     iterations = 30
 
-    kinVisc=1/400
+    kinVisc=1/40
     rho=1.18
 
     #set relaxation factors
-    relaxation = 0.99
+    relaxation = 0.9
 
     #build grid
     import Grid
     grid=Grid.grid(nx,ny,verbose=False)
     #grid.plot()
 
-    #solution ordered u,v,phi
+
+    #solution ordered [x,y,(u,v,phi)]
     solution=np.zeros((nx+4,ny+4,3))
 
     Ap = np.zeros(np.shape(solution))
     #+1, +1
-    solution[2:-2,0:2,2]=1.0
-    solution[:,:,0]=1
-    solution[:,:,1]=1
+    # solution[2:-2,0:2,2]=1.0
+    # solution[:,:,0]=1
+    # solution[:,:,1]=1
     #-1, -1
-    # solution[1:-1,-1,2]=1.0
-    # solution[:,:,0]=-1
-    # solution[:,:,1]=-1
+    solution[2:-2,-2:,2]=1.0
+    solution[:,:,0]=-1
+    solution[:,:,1]=-1
 
     maxResiduals = np.zeros(3)
 
@@ -57,13 +58,15 @@ def main():
                 phi = solution[i,j,2] * (1 - relaxation) + relaxation * phi
 
                 # +1, +1
-                solution[-2,2:-2,2]=solution[-3,2:-2,2]
-                solution[-1,2:-2,2]=solution[-3,2:-2,2]
-                solution[2:-2,-2,2]=solution[2:-2,-3,2]
-                solution[2:-2,-1,2]=solution[2:-2,-3,2]
+                # solution[-2,2:-2,2]=solution[-3,2:-2,2]
+                # solution[-1,2:-2,2]=solution[-3,2:-2,2]
+                # solution[2:-2,-2,2]=solution[2:-2,-3,2]
+                # solution[2:-2,-1,2]=solution[2:-2,-3,2]
                 # -1, -1
-                # solution[0,1:-1,2]=solution[1,1:-1,2]
-                # solution[1:-1,0,2]=solution[1:-1,1,2]
+                solution[2:-2,2,2]=solution[2:-2,3,2]
+                solution[2:-2,1,2]=solution[2:-2,3,2]
+                solution[2,2:-2,2]=solution[3,2:-2,2]
+                solution[1,2:-2,2]=solution[3,2:-2,2]
                 
                 solution[i,j,2] = phi
 
@@ -78,9 +81,9 @@ def main():
             rangev = np.linspace(0, 1.0, 9, endpoint=True)
             cs = axs.contourf\
                 (
-                    grid.val[2:-2,2:-2,0], 
-                    grid.val[2:-2,2:-2,1], 
-                    solution[2:-2,2:-2,2], 
+                    grid.val[1:-1,1:-1,0], 
+                    grid.val[1:-1,1:-1,1], 
+                    solution[1:-1,1:-1,2], 
                     rangev, 
                     extend='both', 
                     cmap=mpl.get_cmap('bwr')
@@ -102,6 +105,7 @@ def main():
     mpl.savefig("test.png")
     mpl.close()
 
+
 def solve(i,j,grid,solution,kinVisc):
 
     from interpolate import linear as linInterp
@@ -120,10 +124,6 @@ def solve(i,j,grid,solution,kinVisc):
     #   this means dx+dx_L for the left cell
     d_X = grid.width(i,j,'x')
     d_Y = grid.width(i,j,'y')
-    d_L = grid.width(i,j,'x') + grid.width(i-1,j,'x')
-    d_R = grid.width(i,j,'x') + grid.width(i+1,j,'x')
-    d_T = grid.width(i,j,'y') + grid.width(i,j+1,'y')
-    d_B = grid.width(i,j,'y') + grid.width(i,j-1,'y')
 
     # get interpolated velocity * area for convection schemes
     Ft = linInterp(i,j,grid,solution,neighbor="T",field=1) * d_X
@@ -131,15 +131,15 @@ def solve(i,j,grid,solution,kinVisc):
     Fl = linInterp(i,j,grid,solution,neighbor="L",field=0) * d_Y
     Fr = linInterp(i,j,grid,solution,neighbor="R",field=0) * d_Y
 
-    Apy += Ft * FOU(i,j,grid,velocity=solution[i,j,0:2],facename="T")
-    Apy += Fb * FOU(i,j,grid,velocity=solution[i,j,0:2],facename="B")
-    Apx += Fl * FOU(i,j,grid,velocity=solution[i,j,0:2],facename="L")
-    Apx += Fr * FOU(i,j,grid,velocity=solution[i,j,0:2],facename="R")
+    # Apy += Ft * FOU(i,j,grid,velocity=solution[i,j,0:2],facename="T")
+    # Apy += Fb * FOU(i,j,grid,velocity=solution[i,j,0:2],facename="B")
+    # Apx += Fl * FOU(i,j,grid,velocity=solution[i,j,0:2],facename="L")
+    # Apx += Fr * FOU(i,j,grid,velocity=solution[i,j,0:2],facename="R")
 
-    # Apy += Ft * SOU(i,j,grid,velocity=solution[i,j,0:2],facename="T")
-    # Apy += Fb * SOU(i,j,grid,velocity=solution[i,j,0:2],facename="B")
-    # Apx += Fl * SOU(i,j,grid,velocity=solution[i,j,0:2],facename="L")
-    # Apx += Fr * SOU(i,j,grid,velocity=solution[i,j,0:2],facename="R")
+    Apy += Ft * SOU(i,j,grid,velocity=solution[i,j,0:2],facename="T")
+    Apy += Fb * SOU(i,j,grid,velocity=solution[i,j,0:2],facename="B")
+    Apx += Fl * SOU(i,j,grid,velocity=solution[i,j,0:2],facename="L")
+    Apx += Fr * SOU(i,j,grid,velocity=solution[i,j,0:2],facename="R")
 
     # Apy += Ft * linear(i,j,grid,facename="T")
     # Apy += Fb * linear(i,j,grid,facename="B")
@@ -147,18 +147,6 @@ def solve(i,j,grid,solution,kinVisc):
     # Apx += Fr * linear(i,j,grid,facename="R")
 
     ########## diffusion tests below ##########
-
-    # diffusion: CD
-    # note: A_P coefficient is backwards, as it shows up in the RHS originally
-    # Apx[2] += 2 * kinVisc * d_Y / d_L + \
-    #           2 * kinVisc * d_Y / d_R + \
-    #           2 * kinVisc * d_X / d_T + \
-    #           2 * kinVisc * d_X / d_B
-              
-    # Apx[1] += 2 * kinVisc * d_Y / d_L
-    # Apx[3] += 2 * kinVisc * d_Y / d_R
-    # Apy[1] += 2 * kinVisc * d_X / d_B
-    # Apy[3] += 2 * kinVisc * d_X / d_T
 
     # diffusion: CD with new Face class
     # Apy += CD(i,j,grid,facename="T") * kinVisc
@@ -168,9 +156,16 @@ def solve(i,j,grid,solution,kinVisc):
 
     ########## diffusion tests above ##########
 
+    # Ap is always considered to be on the LHS for solivng.
+    # so the final discrete equation is:
+    #   Ap*phi_p = sum(An*phi_n)
+    # therefore any An on the LHS must be reversed
+    # and any Ap on the right hand side must be reversed
+
     # compute desired value of Up
-    print(str(Apx) + " " + str(i) + " " + str(j))
-    print(str(Apy) + " " + str(i) + " " + str(j))
+    print("{0}-{1}: {2:.3f} {3:.3f} {4:.3f} {5:.3f} {6:.3f} ".format(i,j,*Apx))
+    print("{0}-{1}: {2:.3f} {3:.3f} {4:.3f} {5:.3f} {6:.3f} ".format(i,j,*Apy))
+
     A_P = Apy[2] + Apx[2]
 
     # TODO: vectorize after setting Apy[2],Apx[2]=0
