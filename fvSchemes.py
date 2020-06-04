@@ -3,6 +3,7 @@
 """
 
 import numpy as np
+import Face
 
 def firstOrderUpwind(i,j,grid,velocity=None,facename="Z"):
 
@@ -17,6 +18,8 @@ def firstOrderUpwind(i,j,grid,velocity=None,facename="Z"):
             grid      (Grid)      -grid object from Grid.py
             velocity  (ndarray)   -2 element np array containing velocity values
             facename  (string)    -name of face for differencing over (TBLR)
+        returns:
+            Apn       (ndarray)   -5x1 array of the Ap coefficients around i,j
     """
 
     # Ap coefficeints we want to finally return
@@ -24,13 +27,12 @@ def firstOrderUpwind(i,j,grid,velocity=None,facename="Z"):
     Apn = np.zeros(5)
 
     # create a face object
-    import Face
     face = Face.face(i,j,grid,facename,velocity=velocity)
 
     # set the two Ap coefficients we wish to upstream
     Apn[face.neighbor1Apn] = 1
 
-    print(str(Apn) + " " + facename)
+    #print(str(Apn) + " " + facename)
 
     return Apn
 
@@ -47,6 +49,8 @@ def secondOrderUpwind(i,j,grid,velocity=None,facename="Z"):
             grid      (Grid)      -grid object from Grid.py
             velocity  (ndarray)   -2 element np array containing velocity values
             facename  (string)    -name of face for differencing over (TBLR)
+        returns:
+            Apn       (ndarray)   -5x1 array of the Ap coefficients around i,j
     """
 
     # Ap coefficeints we want to finally return
@@ -54,7 +58,6 @@ def secondOrderUpwind(i,j,grid,velocity=None,facename="Z"):
     Apn = np.zeros(5)
 
     # create a face object
-    import Face
     face = Face.face(i,j,grid,facename,velocity=velocity)
 
     neighbor1Size = grid.width\
@@ -69,11 +72,17 @@ def secondOrderUpwind(i,j,grid,velocity=None,facename="Z"):
             face.neighbor2[1],
             face.sizeDirection
         )
+
+    # create a negative sign if the face normal is against 1,1
+    # ensuring usage of the conservation principle
+    negative = np.dot(np.array([1,1]),face.normal)
     
     # set the two Ap coefficients we wish to upstream
-    Apn[face.neighbor1Apn] = 1 + neighbor1Size / (neighbor1Size + neighbor2Size)
-    Apn[face.neighbor2Apn] = -neighbor1Size / (neighbor1Size + neighbor2Size)
-
+    Apn[face.neighbor1Apn] = (1 + neighbor1Size / (neighbor1Size + neighbor2Size)) * negative
+    Apn[face.neighbor2Apn] = (-neighbor1Size / (neighbor1Size + neighbor2Size)) * negative
+     
+    # flip all non-P coefficients, as for convection they are put on the RHS
+    Apn = Apn * np.array([-1,-1,1,-1,-1])
     print(str(Apn) + " " + facename)
 
     return Apn
@@ -90,6 +99,8 @@ def linear(i,j,grid,facename="Z"):
             j         (int)       -current gridpoint y index
             grid      (Grid)      -grid object from Grid.py
             facename  (string)    -name of face for differencing over (TBLR)
+        returns:
+            Apn       (ndarray)   -5x1 array of the Ap coefficients around i,j
     """
 
     # Ap coefficeints we want to finally return
@@ -97,7 +108,6 @@ def linear(i,j,grid,facename="Z"):
     Apn = np.zeros(5) 
 
     # create a face object
-    import Face
     face = Face.face(i,j,grid,facename)
 
     cellSize = grid.width\
@@ -112,10 +122,16 @@ def linear(i,j,grid,facename="Z"):
             face.neighbor1[1],
             face.sizeDirection
         )
+    
+    # TODO: debug this, it totally doesn't work.
 
-    Apn[face.neighbor1Apn] = cellSize     / (cellSize + neighborSize)
-    Apn[face.cellApn]      = neighborSize / (cellSize + neighborSize)
+    #negative = np.dot(np.array([1,1]),face.normal)
+    negative = 1
 
+    Apn[face.neighbor1Apn] = cellSize     / (cellSize + neighborSize) * negative
+    Apn[face.cellApn]      = neighborSize / (cellSize + neighborSize) * negative
+
+    #Apn = Apn * np.array([-1,-1,1,-1,-1])
     print(str(Apn) + " " + facename)
 
     return Apn
@@ -131,6 +147,8 @@ def centralDifference(i,j,grid,facename="Z"):
             j         (int)       -current gridpoint y index
             grid      (Grid)      -grid object from Grid.py
             facename  (string)    -name of face for differencing over (TBLR)
+        returns:
+            Apn       (ndarray)   -5x1 array of the Ap coefficients around i,j
     """
 
     # Ap coefficeints we want to finally return
@@ -138,7 +156,6 @@ def centralDifference(i,j,grid,facename="Z"):
     Apn = np.zeros(5)
 
     # create a face object
-    import Face
     face = Face.face(i,j,grid,facename)
 
     cellSize = grid.width\
